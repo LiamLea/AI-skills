@@ -9,7 +9,7 @@ Produces an interactive HTML call-chain report for the target codebase.
 
 ## Workflow
 
-1. **Determine target** — Use the directory the user specifies, or the current working directory.
+1. **Determine target** — If the user provides a remote repo URL (e.g. GitHub), always use that remote — local clones may be stale. If the remote is unavailable or no remote is provided, confirm with the user before using a local path.
 2. **Discover APIs** — Find all route/handler registrations. Detect the language/framework from project files and search accordingly.
 3. **Trace each API** — Read each handler file; follow function calls recursively (handler → service → repo layers) up to 4 levels deep or until leaf calls.
 4. **Classify leaf calls** — Tag each discovered call as: `sql`, `http`, `grpc`, `queue`, `cache`, `external`, or `service`.
