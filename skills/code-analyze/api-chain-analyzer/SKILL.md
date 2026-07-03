@@ -23,7 +23,7 @@ Produces an interactive HTML call-chain report for the target codebase.
 
 1. **Fetch previous result** — `WebFetch` the URL; extract `DATA` from the `const DATA = ` line.
 2. **Check commit** — Run `git rev-parse HEAD`. If it matches `DATA.commit`, nothing changed — tell the user and stop.
-3. **Scope the re-analysis** — Run `git diff --name-only <DATA.commit>..HEAD`. Re-trace only endpoints whose call chain touches a changed file; keep the rest from `DATA.apis`.
+3. **Scope the re-analysis** — Run `git diff --name-only <DATA.commit>..HEAD`. Re-trace only endpoints (across `DATA.services[].apis[]`) whose call chain touches a changed file; keep the rest unchanged.
 4. **Rebuild and redeploy** — Merge results, update `commit` and `scanned_at`, then publish via Artifact with `url: <previous artifact URL>` to redeploy in place.
 
 ## Call Graph JSON Schema
@@ -33,32 +33,37 @@ Produces an interactive HTML call-chain report for the target codebase.
   "project": "repo-name",
   "scanned_at": "YYYY-MM-DD",
   "commit": "abc1234",
-  "apis": [
+  "services": [
     {
-      "method": "GET",
-      "path": "/api/v1/users",
-      "handler": "UserHandler.List",
-      "file": "internal/handler/user.go:45",
-      "calls": [
+      "name": "user",
+      "apis": [
         {
-          "type": "service",
-          "label": "UserService.List(ctx, params)",
-          "file": "internal/service/user.go:23",
-          "detail": null,
+          "method": "GET",
+          "path": "/api/v1/users",
+          "handler": "UserHandler.List",
+          "file": "internal/user/handler.go:45",
           "calls": [
             {
-              "type": "cache",
-              "label": "cache.Get(\"users:list\")",
-              "file": "internal/service/user.go:30",
+              "type": "service",
+              "label": "UserService.List(ctx, params)",
+              "file": "internal/user/service.go:23",
               "detail": null,
-              "calls": []
-            },
-            {
-              "type": "sql",
-              "label": "SELECT users",
-              "file": "internal/repo/user.go:67",
-              "detail": "SELECT id, name, email FROM users WHERE active = true ORDER BY created_at DESC",
-              "calls": []
+              "calls": [
+                {
+                  "type": "cache",
+                  "label": "cache.Get(\"users:list\")",
+                  "file": "internal/user/service.go:30",
+                  "detail": null,
+                  "calls": []
+                },
+                {
+                  "type": "sql",
+                  "label": "SELECT users",
+                  "file": "internal/user/repo.go:67",
+                  "detail": "SELECT id, name, email FROM users WHERE active = true ORDER BY created_at DESC",
+                  "calls": []
+                }
+              ]
             }
           ]
         }
@@ -69,6 +74,7 @@ Produces an interactive HTML call-chain report for the target codebase.
 ```
 
 **Field rules:**
+- `services[].name`: derived from the top-level directory containing the handler (e.g. `internal/user/…` → `user`)
 - `type`: one of `service | sql | http | grpc | queue | cache | external | internal`
 - `label`: short human-readable name (function name, SQL verb + table, URL)
 - `detail`: the full SQL string, full URL, or proto method — omit (`null`) for service/internal calls
@@ -88,7 +94,7 @@ After building the JSON:
 ## Tips
 
 - If the codebase is large, focus grepping on `internal/`, `src/`, `app/`, `handler/`, `controller/`, `api/` directories first.
-- For monorepos, produce one `DATA.apis` array covering all services; prefix `path` with the service name (e.g. `/user-service/api/v1/…`).
+- For monorepos, each top-level service directory becomes one `services` entry — no need to prefix `path`.
 - If a handler delegates to a method you can't locate (e.g. generated code), add a leaf node with `type: "external"` and label it clearly.
 - SQL `detail` field: include the actual query string if visible in source; for ORM chains describe the operation (e.g. `"gorm: WHERE active=true ORDER BY created_at"`).
 - Limit recursive tracing to 4 hops to avoid runaway analysis. Mark anything beyond depth 4 as `type: "internal"` with label `"(deeper calls not traced)"`.

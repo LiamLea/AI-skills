@@ -145,6 +145,29 @@ body {
 
 .api-list { flex: 1; overflow-y: auto; padding: 5px 6px; }
 
+.service-group { margin-bottom: 4px; }
+.service-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+.service-count {
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-hi);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 5px;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
 .api-item {
   display: flex;
   align-items: flex-start;
@@ -299,9 +322,6 @@ body {
 .legend-dot { width: 6px; height: 6px; border-radius: 50%; }
 
 /* Tree */
-.tree { }
-.tree-node { }
-
 .tree-row {
   display: flex;
   align-items: flex-start;
@@ -504,9 +524,12 @@ function walkCalls(calls, bag) {
 
 function newBag() { return { total: 0 }; }
 
+// Flat list for indexed access; group structure preserved in DATA.services
+const allApis = (DATA.services || []).flatMap(s => s.apis || []);
+
 // Global counters
 const global = newBag();
-DATA.apis.forEach(a => walkCalls(a.calls, global));
+allApis.forEach(a => walkCalls(a.calls, global));
 
 // ── Topbar ────────────────────────────────────────────────────────────
 document.getElementById('proj-name').textContent = DATA.project || '';
@@ -528,7 +551,7 @@ const statsEl = document.getElementById('topbar-stats');
 // APIs pill
 const apiPill = document.createElement('div');
 apiPill.className = 'stat-pill';
-apiPill.innerHTML = `<span class="pill-dot" style="background:var(--accent)"></span><span class="pill-n">${DATA.apis.length}</span> APIs`;
+apiPill.innerHTML = `<span class="pill-dot" style="background:var(--accent)"></span><span class="pill-n">${allApis.length}</span> APIs`;
 statsEl.appendChild(apiPill);
 
 statDefs.forEach(({ key, label }) => {
@@ -548,27 +571,41 @@ function methodCls(m) {
     (m || '').toUpperCase()] || 'm-OTHER';
 }
 
-DATA.apis.forEach((api, idx) => {
-  const bag = newBag();
-  walkCalls(api.calls, bag);
+let flatIdx = 0;
+(DATA.services || []).forEach(svc => {
+  const group = document.createElement('div');
+  group.className = 'service-group';
 
-  const el = document.createElement('div');
-  el.className = 'api-item';
-  el.dataset.idx = idx;
-  el.dataset.search = `${api.path || ''} ${api.handler || ''}`.toLowerCase();
+  const label = document.createElement('div');
+  label.className = 'service-label';
+  label.innerHTML = `${esc(svc.name || 'unknown')}<span class="service-count">${(svc.apis || []).length}</span>`;
+  group.appendChild(label);
 
-  const countTip = bag.total ? `${bag.total} call${bag.total !== 1 ? 's' : ''}` : '';
+  (svc.apis || []).forEach(api => {
+    const idx = flatIdx++;
+    const bag = newBag();
+    walkCalls(api.calls, bag);
 
-  el.innerHTML = `
-    <span class="method-badge ${methodCls(api.method)}">${esc(api.method || 'ANY')}</span>
-    <div class="api-info">
-      <div class="api-path">${esc(api.path || '(unknown)')}</div>
-      ${api.handler ? `<div class="api-handler">${esc(api.handler)}</div>` : ''}
-    </div>
-    ${countTip ? `<div class="api-call-count">${countTip}</div>` : ''}`;
+    const el = document.createElement('div');
+    el.className = 'api-item';
+    el.dataset.idx = idx;
+    el.dataset.search = `${api.path || ''} ${api.handler || ''} ${svc.name || ''}`.toLowerCase();
 
-  el.addEventListener('click', () => select(idx, el));
-  apiList.appendChild(el);
+    const countTip = bag.total ? `${bag.total} call${bag.total !== 1 ? 's' : ''}` : '';
+
+    el.innerHTML = `
+      <span class="method-badge ${methodCls(api.method)}">${esc(api.method || 'ANY')}</span>
+      <div class="api-info">
+        <div class="api-path">${esc(api.path || '(unknown)')}</div>
+        ${api.handler ? `<div class="api-handler">${esc(api.handler)}</div>` : ''}
+      </div>
+      ${countTip ? `<div class="api-call-count">${countTip}</div>` : ''}`;
+
+    el.addEventListener('click', () => select(idx, el));
+    group.appendChild(el);
+  });
+
+  apiList.appendChild(group);
 });
 
 updateMeta();
@@ -578,14 +615,18 @@ document.getElementById('search').addEventListener('input', e => {
   apiList.querySelectorAll('.api-item').forEach(el => {
     el.classList.toggle('hidden', !!q && !el.dataset.search.includes(q));
   });
+  apiList.querySelectorAll('.service-group').forEach(g => {
+    const hasVisible = g.querySelectorAll('.api-item:not(.hidden)').length > 0;
+    g.querySelector('.service-label').style.display = hasVisible ? '' : 'none';
+  });
   updateMeta();
 });
 
 function updateMeta() {
   const vis = apiList.querySelectorAll('.api-item:not(.hidden)').length;
-  metaEl.textContent = vis === DATA.apis.length
-    ? `${DATA.apis.length} endpoints`
-    : `${vis} of ${DATA.apis.length} endpoints`;
+  metaEl.textContent = vis === allApis.length
+    ? `${allApis.length} endpoints`
+    : `${vis} of ${allApis.length} endpoints`;
 }
 
 // ── Legend strip (shown once content renders) ─────────────────────────
@@ -606,7 +647,7 @@ function select(idx, el) {
   apiList.querySelectorAll('.api-item').forEach(i => i.classList.remove('active'));
   el.classList.add('active');
 
-  const api   = DATA.apis[idx];
+  const api   = allApis[idx];
   const bag   = newBag();
   const types = new Set();
   function collectTypes(calls) {
