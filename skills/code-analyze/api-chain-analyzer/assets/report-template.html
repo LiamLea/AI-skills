@@ -66,6 +66,15 @@ body {
   font-size: 11px;
   color: var(--t3);
 }
+.topbar-commit {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--t3);
+  background: var(--surface-hi);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
 .topbar-stats {
   margin-left: auto;
   display: flex;
@@ -437,6 +446,7 @@ body {
   <span class="topbar-div"></span>
   <span class="topbar-project" id="proj-name"></span>
   <span class="topbar-date" id="proj-date"></span>
+  <span class="topbar-commit" id="proj-commit" style="display:none"></span>
   <div class="topbar-stats" id="topbar-stats"></div>
 </div>
 
@@ -501,6 +511,8 @@ DATA.apis.forEach(a => walkCalls(a.calls, global));
 // ── Topbar ────────────────────────────────────────────────────────────
 document.getElementById('proj-name').textContent = DATA.project || '';
 document.getElementById('proj-date').textContent = DATA.scanned_at ? `· ${DATA.scanned_at}` : '';
+const commitEl = document.getElementById('proj-commit');
+if (DATA.commit) { commitEl.textContent = DATA.commit.slice(0, 7); commitEl.style.display = ''; }
 
 const statDefs = [
   { key: 'sql',      label: 'SQL' },

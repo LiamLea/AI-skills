@@ -9,12 +9,22 @@ Produces an interactive HTML call-chain report for the target codebase.
 
 ## Workflow
 
+### First run (no previous artifact URL)
+
 1. **Determine target** — If the user provides a remote repo URL (e.g. GitHub), always use that remote — local clones may be stale. If the remote is unavailable or no remote is provided, confirm with the user before using a local path.
 2. **Discover APIs** — Find all route/handler registrations. Detect the language/framework from project files and search accordingly.
 3. **Trace each API** — Read each handler file; follow function calls recursively (handler → service → repo layers) up to 4 levels deep or until leaf calls.
 4. **Classify leaf calls** — Tag each discovered call as: `sql`, `http`, `grpc`, `queue`, `cache`, `external`, or `service`.
-5. **Build the call graph JSON** — Assemble `DATA` following the schema below.
-6. **Render the report** — Read the template from `assets/report-template.html` (in the same skill directory), replace the literal token `CALL_GRAPH_DATA` with your JSON, then publish via the Artifact tool.
+5. **Get current commit** — Run `git rev-parse HEAD` in the repo root. Store as `commit` in `DATA`.
+6. **Build the call graph JSON** — Assemble `DATA` following the schema below (include `commit`).
+7. **Render the report** — Read the template from `assets/report-template.html` (in the same skill directory), replace the literal token `CALL_GRAPH_DATA` with your JSON, then publish via the Artifact tool.
+
+### Incremental re-run (user passes a previous artifact URL)
+
+1. **Fetch previous result** — `WebFetch` the URL; extract `DATA` from the `const DATA = ` line.
+2. **Check commit** — Run `git rev-parse HEAD`. If it matches `DATA.commit`, nothing changed — tell the user and stop.
+3. **Scope the re-analysis** — Run `git diff --name-only <DATA.commit>..HEAD`. Re-trace only endpoints whose call chain touches a changed file; keep the rest from `DATA.apis`.
+4. **Rebuild and redeploy** — Merge results, update `commit` and `scanned_at`, then publish via Artifact with `url: <previous artifact URL>` to redeploy in place.
 
 ## Call Graph JSON Schema
 
@@ -22,6 +32,7 @@ Produces an interactive HTML call-chain report for the target codebase.
 {
   "project": "repo-name",
   "scanned_at": "YYYY-MM-DD",
+  "commit": "abc1234",
   "apis": [
     {
       "method": "GET",
