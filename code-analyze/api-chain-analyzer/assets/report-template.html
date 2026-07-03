@@ -1,0 +1,719 @@
+<title>API Call Chain Report</title>
+<meta name="description" content="Interactive visualization of API endpoints, SQL queries, and external call chains">
+<style>
+:root {
+  --bg:          #0c1220;
+  --surface:     #131e2f;
+  --surface-hi:  #1b2b42;
+  --surface-hov: #182336;
+  --border:      #243347;
+  --border-hi:   #2e4560;
+  --accent:      #4d8ef0;
+  --accent-glow: rgba(77,142,240,0.12);
+  --t1: #dde5f0;
+  --t2: #8aa4c0;
+  --t3: #4e6a85;
+  --ui:   system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', sans-serif;
+  --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  --c-service:  #9b80e8;
+  --c-sql:      #52c974;
+  --c-http:     #e8a84a;
+  --c-grpc:     #e06060;
+  --c-queue:    #e87a3c;
+  --c-cache:    #52b8e8;
+  --c-external: #7ad4d4;
+  --c-internal: #6e8aaa;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--ui);
+  background: var(--bg);
+  color: var(--t1);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ── Topbar ──────────────────────────────────────────────────── */
+.topbar {
+  height: 48px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 18px;
+  flex-shrink: 0;
+}
+.topbar-wordmark {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.topbar-div { width: 1px; height: 18px; background: var(--border); }
+.topbar-project {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--t1);
+}
+.topbar-date {
+  font-size: 11px;
+  color: var(--t3);
+}
+.topbar-stats {
+  margin-left: auto;
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 100px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--t2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pill-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.pill-n { font-weight: 600; color: var(--t1); }
+
+/* ── Layout ──────────────────────────────────────────────────── */
+.layout { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Sidebar ─────────────────────────────────────────────────── */
+.sidebar {
+  width: 296px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+}
+.sidebar-head {
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.search-wrap { position: relative; }
+.search-icon {
+  position: absolute; left: 9px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--t3); font-size: 11px; pointer-events: none;
+}
+.search {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 5px 10px 5px 27px;
+  color: var(--t1);
+  font-size: 12px;
+  font-family: var(--ui);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.search::placeholder { color: var(--t3); }
+.search:focus { border-color: var(--accent); }
+.sidebar-meta {
+  margin-top: 7px;
+  font-size: 10px;
+  color: var(--t3);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.api-list { flex: 1; overflow-y: auto; padding: 5px 6px; }
+
+.api-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.1s;
+  margin-bottom: 1px;
+}
+.api-item:hover { background: var(--surface-hov); }
+.api-item.active { background: var(--accent-glow); outline: 1px solid rgba(77,142,240,0.25); }
+.api-item.hidden { display: none; }
+
+.method-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  text-transform: uppercase;
+}
+.m-GET    { background: rgba(82,201,116,0.14);  color: #52c974; }
+.m-POST   { background: rgba(77,142,240,0.14);  color: #4d8ef0; }
+.m-PUT    { background: rgba(232,168,74,0.14);  color: #e8a84a; }
+.m-PATCH  { background: rgba(155,128,232,0.14); color: #9b80e8; }
+.m-DELETE { background: rgba(224,96,96,0.14);   color: #e06060; }
+.m-OTHER  { background: rgba(110,138,170,0.12); color: #6e8aaa; }
+
+.api-info { flex: 1; min-width: 0; }
+.api-path {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--t1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+.api-handler {
+  font-size: 10px;
+  color: var(--t3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+.api-call-count {
+  font-size: 10px;
+  color: var(--t3);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding-top: 2px;
+}
+
+/* ── Content ─────────────────────────────────────────────────── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 26px 32px;
+}
+
+/* Placeholder */
+.placeholder {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--t3);
+  text-align: center;
+}
+.placeholder-mark {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+.placeholder-lead { font-size: 13px; font-weight: 500; color: var(--t2); }
+.placeholder-sub { font-size: 11px; }
+
+/* Chain header */
+.chain-head {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.chain-route {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chain-path {
+  font-family: var(--mono);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--t1);
+  word-break: break-all;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+.chain-sub {
+  display: flex;
+  gap: 16px;
+  margin-top: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.chain-handler {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--c-service);
+}
+.chain-file {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--t3);
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 16px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--t2);
+  padding: 2px 8px 2px 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+}
+.legend-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* Tree */
+.tree { }
+.tree-node { }
+
+.tree-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  transition: background 0.1s;
+  cursor: default;
+}
+.tree-row:hover { background: var(--surface); }
+.tree-row.clickable { cursor: pointer; }
+
+.tree-children {
+  margin-left: 18px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+}
+
+.tree-toggle {
+  width: 12px;
+  flex-shrink: 0;
+  margin-top: 4px;
+  font-size: 8px;
+  color: var(--t3);
+  user-select: none;
+  line-height: 1;
+}
+
+.node-chip {
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.node-body { flex: 1; min-width: 0; }
+.node-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  word-break: break-word;
+  line-height: 1.45;
+}
+.node-detail {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--t2);
+  margin-top: 5px;
+  padding: 6px 10px;
+  background: var(--surface);
+  border-radius: 6px;
+  border-left: 3px solid var(--border-hi);
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-x: auto;
+  line-height: 1.55;
+}
+.node-file {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--t3);
+  margin-top: 3px;
+}
+
+/* Per-type styling */
+.nt-service .node-chip  { background: rgba(155,128,232,0.15); color: var(--c-service); }
+.nt-service .node-label { color: var(--c-service); }
+.nt-service .node-detail { border-color: var(--c-service); }
+
+.nt-sql .node-chip  { background: rgba(82,201,116,0.15); color: var(--c-sql); }
+.nt-sql .node-label { color: var(--c-sql); }
+.nt-sql .node-detail { border-color: var(--c-sql); }
+
+.nt-http .node-chip  { background: rgba(232,168,74,0.15); color: var(--c-http); }
+.nt-http .node-label { color: var(--c-http); }
+.nt-http .node-detail { border-color: var(--c-http); }
+
+.nt-grpc .node-chip  { background: rgba(224,96,96,0.15); color: var(--c-grpc); }
+.nt-grpc .node-label { color: var(--c-grpc); }
+.nt-grpc .node-detail { border-color: var(--c-grpc); }
+
+.nt-queue .node-chip  { background: rgba(232,122,60,0.15); color: var(--c-queue); }
+.nt-queue .node-label { color: var(--c-queue); }
+.nt-queue .node-detail { border-color: var(--c-queue); }
+
+.nt-cache .node-chip  { background: rgba(82,184,232,0.15); color: var(--c-cache); }
+.nt-cache .node-label { color: var(--c-cache); }
+.nt-cache .node-detail { border-color: var(--c-cache); }
+
+.nt-external .node-chip  { background: rgba(122,212,212,0.15); color: var(--c-external); }
+.nt-external .node-label { color: var(--c-external); }
+.nt-external .node-detail { border-color: var(--c-external); }
+
+.nt-internal .node-chip  { background: rgba(110,138,170,0.1); color: var(--c-internal); }
+.nt-internal .node-label { color: var(--c-internal); }
+
+/* Summary */
+.summary { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+.summary-head {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t3);
+  margin-bottom: 9px;
+}
+.summary-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sum-chip {
+  font-size: 11px;
+  font-family: var(--mono);
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--t2);
+  font-variant-numeric: tabular-nums;
+}
+.sum-chip strong { font-weight: 600; color: var(--t1); }
+
+.no-calls {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--t3);
+  padding: 14px 0;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
+</style>
+
+<!-- ── Topbar ──────────────────────────────────────────── -->
+<div class="topbar">
+  <span class="topbar-wordmark">Chain</span>
+  <span class="topbar-div"></span>
+  <span class="topbar-project" id="proj-name"></span>
+  <span class="topbar-date" id="proj-date"></span>
+  <div class="topbar-stats" id="topbar-stats"></div>
+</div>
+
+<!-- ── Layout ────────────────────────────────────────────── -->
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input class="search" type="text" placeholder="Filter endpoints…" id="search" autocomplete="off">
+      </div>
+      <div class="sidebar-meta" id="sidebar-meta"></div>
+    </div>
+    <div class="api-list" id="api-list"></div>
+  </aside>
+
+  <!-- Content -->
+  <main class="content" id="content">
+    <div class="placeholder">
+      <div class="placeholder-mark">⬡</div>
+      <div class="placeholder-lead">Select an endpoint</div>
+      <div class="placeholder-sub">Choose an API from the sidebar to view its full call chain</div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────
+// Claude replaces the entire right-hand side of this assignment
+// (the CALL_GRAPH_DATA token) with the discovered call graph JSON.
+const DATA = CALL_GRAPH_DATA;
+// ─────────────────────────────────────────────────────────────────────
+
+const CHIP_LABELS = {
+  service: 'SVC', sql: 'SQL', http: 'HTTP', grpc: 'gRPC',
+  queue: 'QUEUE', cache: 'CACHE', external: 'EXT', internal: '···',
+};
+
+const TYPE_COLORS = {
+  service: '#9b80e8', sql: '#52c974', http: '#e8a84a',
+  grpc: '#e06060', queue: '#e87a3c', cache: '#52b8e8',
+  external: '#7ad4d4', internal: '#6e8aaa',
+};
+
+// ── Count calls recursively ───────────────────────────────────────────
+function walkCalls(calls, bag) {
+  if (!calls) return;
+  for (const c of calls) {
+    bag.total++;
+    bag[c.type] = (bag[c.type] || 0) + 1;
+    walkCalls(c.calls, bag);
+  }
+}
+
+function newBag() { return { total: 0 }; }
+
+// Global counters
+const global = newBag();
+DATA.apis.forEach(a => walkCalls(a.calls, global));
+
+// ── Topbar ────────────────────────────────────────────────────────────
+document.getElementById('proj-name').textContent = DATA.project || '';
+document.getElementById('proj-date').textContent = DATA.scanned_at ? `· ${DATA.scanned_at}` : '';
+
+const statDefs = [
+  { key: 'sql',      label: 'SQL' },
+  { key: 'http',     label: 'HTTP' },
+  { key: 'grpc',     label: 'gRPC' },
+  { key: 'queue',    label: 'Queue' },
+  { key: 'cache',    label: 'Cache' },
+  { key: 'external', label: 'Ext' },
+];
+
+const statsEl = document.getElementById('topbar-stats');
+
+// APIs pill
+const apiPill = document.createElement('div');
+apiPill.className = 'stat-pill';
+apiPill.innerHTML = `<span class="pill-dot" style="background:var(--accent)"></span><span class="pill-n">${DATA.apis.length}</span> APIs`;
+statsEl.appendChild(apiPill);
+
+statDefs.forEach(({ key, label }) => {
+  if (!global[key]) return;
+  const p = document.createElement('div');
+  p.className = 'stat-pill';
+  p.innerHTML = `<span class="pill-dot" style="background:${TYPE_COLORS[key]}"></span><span class="pill-n">${global[key]}</span> ${label}`;
+  statsEl.appendChild(p);
+});
+
+// ── Sidebar ───────────────────────────────────────────────────────────
+const apiList = document.getElementById('api-list');
+const metaEl  = document.getElementById('sidebar-meta');
+
+function methodCls(m) {
+  return ({ GET: 'm-GET', POST: 'm-POST', PUT: 'm-PUT', PATCH: 'm-PATCH', DELETE: 'm-DELETE' })[
+    (m || '').toUpperCase()] || 'm-OTHER';
+}
+
+DATA.apis.forEach((api, idx) => {
+  const bag = newBag();
+  walkCalls(api.calls, bag);
+
+  const el = document.createElement('div');
+  el.className = 'api-item';
+  el.dataset.idx = idx;
+  el.dataset.search = `${api.path || ''} ${api.handler || ''}`.toLowerCase();
+
+  const countTip = bag.total ? `${bag.total} call${bag.total !== 1 ? 's' : ''}` : '';
+
+  el.innerHTML = `
+    <span class="method-badge ${methodCls(api.method)}">${esc(api.method || 'ANY')}</span>
+    <div class="api-info">
+      <div class="api-path">${esc(api.path || '(unknown)')}</div>
+      ${api.handler ? `<div class="api-handler">${esc(api.handler)}</div>` : ''}
+    </div>
+    ${countTip ? `<div class="api-call-count">${countTip}</div>` : ''}`;
+
+  el.addEventListener('click', () => select(idx, el));
+  apiList.appendChild(el);
+});
+
+updateMeta();
+
+document.getElementById('search').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase().trim();
+  apiList.querySelectorAll('.api-item').forEach(el => {
+    el.classList.toggle('hidden', !!q && !el.dataset.search.includes(q));
+  });
+  updateMeta();
+});
+
+function updateMeta() {
+  const vis = apiList.querySelectorAll('.api-item:not(.hidden)').length;
+  metaEl.textContent = vis === DATA.apis.length
+    ? `${DATA.apis.length} endpoints`
+    : `${vis} of ${DATA.apis.length} endpoints`;
+}
+
+// ── Legend strip (shown once content renders) ─────────────────────────
+function buildLegend(types) {
+  const div = document.createElement('div');
+  div.className = 'legend';
+  ['service','sql','http','grpc','queue','cache','external'].filter(t => types.has(t)).forEach(t => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<span class="legend-dot" style="background:${TYPE_COLORS[t]}"></span>${CHIP_LABELS[t]}`;
+    div.appendChild(item);
+  });
+  return div;
+}
+
+// ── Content ───────────────────────────────────────────────────────────
+function select(idx, el) {
+  apiList.querySelectorAll('.api-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+
+  const api   = DATA.apis[idx];
+  const bag   = newBag();
+  const types = new Set();
+  function collectTypes(calls) {
+    if (!calls) return;
+    calls.forEach(c => { types.add(c.type); bag.total++; bag[c.type] = (bag[c.type] || 0) + 1; collectTypes(c.calls); });
+  }
+  collectTypes(api.calls);
+
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+
+  // Header
+  const head = document.createElement('div');
+  head.className = 'chain-head';
+  head.innerHTML = `
+    <div class="chain-route">
+      <span class="method-badge ${methodCls(api.method)}" style="font-size:10px;padding:3px 8px">${esc(api.method || 'ANY')}</span>
+      <span class="chain-path">${esc(api.path || '(unknown)')}</span>
+    </div>
+    <div class="chain-sub">
+      ${api.handler ? `<span class="chain-handler">${esc(api.handler)}</span>` : ''}
+      ${api.file    ? `<span class="chain-file">${esc(api.file)}</span>` : ''}
+    </div>`;
+  content.appendChild(head);
+
+  // Legend (only types present in this chain)
+  if (types.size > 0) content.appendChild(buildLegend(types));
+
+  // Tree
+  if (api.calls && api.calls.length) {
+    const tree = document.createElement('div');
+    tree.className = 'tree';
+    api.calls.forEach(c => tree.appendChild(buildNode(c)));
+    content.appendChild(tree);
+  } else {
+    const empty = document.createElement('div');
+    empty.className = 'no-calls';
+    empty.textContent = '— no downstream calls detected —';
+    content.appendChild(empty);
+  }
+
+  // Summary
+  const summaryTypes = statDefs.filter(d => bag[d.key]);
+  if (summaryTypes.length) {
+    const sum = document.createElement('div');
+    sum.className = 'summary';
+    sum.innerHTML = `<div class="summary-head">Calls in this chain</div>
+      <div class="summary-chips">
+        ${summaryTypes.map(d => `<div class="sum-chip"><strong>${bag[d.key]}</strong> ${d.label}</div>`).join('')}
+      </div>`;
+    content.appendChild(sum);
+  }
+}
+
+function buildNode(node) {
+  const type = node.type || 'internal';
+  const wrapper = document.createElement('div');
+  wrapper.className = 'tree-node';
+
+  const hasCh = node.calls && node.calls.length > 0;
+  const row   = document.createElement('div');
+  row.className = `tree-row nt-${type}${hasCh ? ' clickable' : ''}`;
+
+  const toggle = document.createElement('span');
+  toggle.className = 'tree-toggle';
+  toggle.textContent = hasCh ? '▼' : '';
+
+  const chip = document.createElement('span');
+  chip.className = 'node-chip';
+  chip.textContent = CHIP_LABELS[type] || type.toUpperCase().slice(0,4);
+
+  const body = document.createElement('div');
+  body.className = 'node-body';
+
+  const lbl = document.createElement('div');
+  lbl.className = 'node-label';
+  lbl.textContent = node.label || type;
+  body.appendChild(lbl);
+
+  if (node.detail) {
+    const det = document.createElement('div');
+    det.className = 'node-detail';
+    det.textContent = node.detail;
+    body.appendChild(det);
+  }
+  if (node.file) {
+    const fl = document.createElement('div');
+    fl.className = 'node-file';
+    fl.textContent = node.file;
+    body.appendChild(fl);
+  }
+
+  row.appendChild(toggle);
+  row.appendChild(chip);
+  row.appendChild(body);
+  wrapper.appendChild(row);
+
+  if (hasCh) {
+    const ch = document.createElement('div');
+    ch.className = 'tree-children';
+    node.calls.forEach(c => ch.appendChild(buildNode(c)));
+    wrapper.appendChild(ch);
+    row.addEventListener('click', () => {
+      const open = ch.style.display !== 'none';
+      ch.style.display = open ? 'none' : '';
+      toggle.textContent = open ? '▶' : '▼';
+    });
+  }
+
+  return wrapper;
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Auto-select first
+const first = apiList.querySelector('.api-item');
+if (first) select(0, first);
+</script>
