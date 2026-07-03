@@ -10,47 +10,11 @@ Produces an interactive HTML call-chain report for the target codebase.
 ## Workflow
 
 1. **Determine target** — Use the directory the user specifies, or the current working directory.
-2. **Detect language/framework** — Check for `go.mod`, `package.json`, `pom.xml`, `requirements.txt`, etc. Adjust grep patterns accordingly.
-3. **Discover APIs** — Find all route/handler registrations (see patterns below).
-4. **Trace each API** — Read each handler file; follow function calls recursively (handler → service → repo layers) up to 4 levels deep or until leaf calls.
-5. **Classify leaf calls** — Tag each discovered call as: `sql`, `http`, `grpc`, `queue`, `cache`, `external`, or `service`.
-6. **Build the call graph JSON** — Assemble `DATA` following the schema below.
-7. **Render the report** — Read the template from `assets/report-template.html` (in the same skill directory), replace the literal token `CALL_GRAPH_DATA` with your JSON, then publish via the Artifact tool.
-
-## Discovery Patterns
-
-### Go
-```
-# HTTP routes
-grep -rn --include="*.go" -E 'r\.(GET|POST|PUT|PATCH|DELETE|Handle|HandleFunc)\(|router\.(GET|POST|PUT|PATCH|DELETE)\(|mux\.Handle|e\.(GET|POST|PUT|PATCH|DELETE)\(|http\.Handle'
-
-# SQL (raw + sqlx + gorm)
-grep -rn --include="*.go" -E 'db\.(Query|Exec|QueryRow|QueryContext|ExecContext|QueryRowContext|Get|Select|NamedQuery)\(|\.Find\(|\.Create\(|\.Save\(|\.Delete\(|\.Where\(|\.First\('
-
-# Outbound HTTP
-grep -rn --include="*.go" -E 'http\.(Get|Post|NewRequest)\(|client\.(Get|Post|Do)\('
-
-# gRPC clients
-grep -rn --include="*.go" -E 'pb\.New\w+Client\(|grpc\.Dial\('
-
-# Message queues (SQS/SNS/Kafka/NATS)
-grep -rn --include="*.go" -E '\.SendMessage\(|\.Publish\(|\.Produce\(|\.Subscribe\(|\.Consume\('
-
-# Cache (Redis)
-grep -rn --include="*.go" -E 'rdb\.(Get|Set|HGet|HSet|Del|Expire)|cache\.(Get|Set|Delete)\('
-```
-
-### TypeScript / JavaScript
-```
-# Express / Next.js / tRPC routes
-grep -rn --include="*.ts" --include="*.tsx" -E 'app\.(get|post|put|patch|delete)\(|router\.(get|post|put|patch|delete)\(|export default.*handler|procedure\.'
-
-# SQL (prisma / knex / pg)
-grep -rn --include="*.ts" -E 'prisma\.\w+\.(find|create|update|delete|upsert)|knex\(|db\.query\('
-
-# Outbound HTTP
-grep -rn --include="*.ts" -E 'fetch\(|axios\.(get|post|put|patch|delete)\('
-```
+2. **Discover APIs** — Find all route/handler registrations. Detect the language/framework from project files and search accordingly.
+3. **Trace each API** — Read each handler file; follow function calls recursively (handler → service → repo layers) up to 4 levels deep or until leaf calls.
+4. **Classify leaf calls** — Tag each discovered call as: `sql`, `http`, `grpc`, `queue`, `cache`, `external`, or `service`.
+5. **Build the call graph JSON** — Assemble `DATA` following the schema below.
+6. **Render the report** — Read the template from `assets/report-template.html` (in the same skill directory), replace the literal token `CALL_GRAPH_DATA` with your JSON, then publish via the Artifact tool.
 
 ## Call Graph JSON Schema
 
