@@ -1,6 +1,6 @@
 ---
 name: api-chain-analyzer
-description: Analyzes a codebase to discover all API endpoints, SQL queries, HTTP client calls, gRPC calls, message queue operations, and cache interactions — then traces the full downstream call chain for each endpoint. Use when asked to: map API dependencies, show what an endpoint calls, find all SQL used by a service, visualize request flows, or produce an API surface report. Outputs an interactive HTML report rendered as an Artifact.
+description: "Analyzes a codebase to discover all API endpoints, SQL queries, HTTP client calls, gRPC calls, message queue operations, and cache interactions — then traces the full downstream call chain for each endpoint. Use when asked to: map API dependencies, show what an endpoint calls, find all SQL used by a service, visualize request flows, or produce an API surface report. Outputs an interactive HTML report rendered as an Artifact."
 ---
 
 # API Call Chain Analyzer
