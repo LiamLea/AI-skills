@@ -453,6 +453,28 @@ body {
   padding: 14px 0;
 }
 
+/* Search highlighting */
+mark {
+  background: rgba(232,168,74,0.28);
+  color: var(--t1);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.chain-match-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--c-http);
+  flex-shrink: 0;
+  align-self: center;
+  margin-left: auto;
+  margin-right: 2px;
+}
+.tree-row.matched {
+  background: rgba(232,168,74,0.07);
+  outline: 1px solid rgba(232,168,74,0.22);
+  outline-offset: -1px;
+}
+
 /* Scrollbars */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -477,7 +499,7 @@ body {
     <div class="sidebar-head">
       <div class="search-wrap">
         <span class="search-icon">⌕</span>
-        <input class="search" type="text" placeholder="Filter endpoints…" id="search" autocomplete="off">
+        <input class="search" type="text" placeholder="Search endpoints &amp; chains…" id="search" autocomplete="off">
       </div>
       <div class="sidebar-meta" id="sidebar-meta"></div>
     </div>
@@ -523,6 +545,42 @@ function walkCalls(calls, bag) {
 }
 
 function newBag() { return { total: 0 }; }
+
+// ── Search state ──────────────────────────────────────────────────────
+let currentQuery = '';
+let selectedIdx  = null;
+let selectedEl   = null;
+
+// Recursively collect all text from a call chain for full-chain search indexing
+function buildChainText(calls) {
+  if (!calls || !calls.length) return '';
+  return calls.map(c =>
+    `${c.label||''} ${c.detail||''} ${c.file||''} ${buildChainText(c.calls)}`
+  ).join(' ');
+}
+
+// XSS-safe highlight: escapes each segment, wraps matches in <mark>
+function highlightText(str, q) {
+  if (!q || !str) return esc(str || '');
+  const lower = str.toLowerCase();
+  const parts = [];
+  let last = 0, pos;
+  while ((pos = lower.indexOf(q, last)) !== -1) {
+    parts.push(esc(str.slice(last, pos)));
+    parts.push(`<mark>${esc(str.slice(pos, pos + q.length))}</mark>`);
+    last = pos + q.length;
+  }
+  parts.push(esc(str.slice(last)));
+  return parts.join('');
+}
+
+// Does this node directly match the query (not counting descendants)?
+function nodeMatches(node, q) {
+  if (!q) return false;
+  return (node.label||'').toLowerCase().includes(q) ||
+         (node.detail||'').toLowerCase().includes(q) ||
+         (node.file||'').toLowerCase().includes(q);
+}
 
 // Flat list for indexed access; group structure preserved in DATA.services
 const allApis = (DATA.services || []).flatMap(s => s.apis || []);
@@ -590,6 +648,7 @@ let flatIdx = 0;
     el.className = 'api-item';
     el.dataset.idx = idx;
     el.dataset.search = `${api.path || ''} ${api.handler || ''} ${svc.name || ''}`.toLowerCase();
+    el.dataset.chainSearch = buildChainText(api.calls).toLowerCase();
 
     const countTip = bag.total ? `${bag.total} call${bag.total !== 1 ? 's' : ''}` : '';
 
@@ -612,14 +671,38 @@ updateMeta();
 
 document.getElementById('search').addEventListener('input', e => {
   const q = e.target.value.toLowerCase().trim();
+  currentQuery = q;
+
   apiList.querySelectorAll('.api-item').forEach(el => {
-    el.classList.toggle('hidden', !!q && !el.dataset.search.includes(q));
+    const pathHit  = !q || el.dataset.search.includes(q);
+    const chainHit = !q || el.dataset.chainSearch.includes(q);
+    el.classList.toggle('hidden', !pathHit && !chainHit);
+
+    // Show orange dot on items that matched only via their call chain
+    let dot = el.querySelector('.chain-match-dot');
+    if (q && !pathHit && chainHit) {
+      if (!dot) {
+        dot = document.createElement('span');
+        dot.className = 'chain-match-dot';
+        dot.title = 'Matched in call chain';
+        el.appendChild(dot);
+      }
+    } else {
+      if (dot) dot.remove();
+    }
   });
+
   apiList.querySelectorAll('.service-group').forEach(g => {
     const hasVisible = g.querySelectorAll('.api-item:not(.hidden)').length > 0;
     g.querySelector('.service-label').style.display = hasVisible ? '' : 'none';
   });
+
   updateMeta();
+
+  // Re-render the content pane so chain nodes get highlighted/unhighlighted
+  if (selectedIdx !== null && selectedEl) {
+    select(selectedIdx, selectedEl);
+  }
 });
 
 function updateMeta() {
@@ -644,6 +727,8 @@ function buildLegend(types) {
 
 // ── Content ───────────────────────────────────────────────────────────
 function select(idx, el) {
+  selectedIdx = idx;
+  selectedEl  = el;
   apiList.querySelectorAll('.api-item').forEach(i => i.classList.remove('active'));
   el.classList.add('active');
 
@@ -707,9 +792,10 @@ function buildNode(node) {
   const wrapper = document.createElement('div');
   wrapper.className = 'tree-node';
 
-  const hasCh = node.calls && node.calls.length > 0;
-  const row   = document.createElement('div');
-  row.className = `tree-row nt-${type}${hasCh ? ' clickable' : ''}`;
+  const hasCh     = node.calls && node.calls.length > 0;
+  const isMatched = nodeMatches(node, currentQuery);
+  const row       = document.createElement('div');
+  row.className   = `tree-row nt-${type}${hasCh ? ' clickable' : ''}${isMatched ? ' matched' : ''}`;
 
   const toggle = document.createElement('span');
   toggle.className = 'tree-toggle';
@@ -724,19 +810,19 @@ function buildNode(node) {
 
   const lbl = document.createElement('div');
   lbl.className = 'node-label';
-  lbl.textContent = node.label || type;
+  lbl.innerHTML = highlightText(node.label || type, currentQuery);
   body.appendChild(lbl);
 
   if (node.detail) {
     const det = document.createElement('div');
     det.className = 'node-detail';
-    det.textContent = node.detail;
+    det.innerHTML = highlightText(node.detail, currentQuery);
     body.appendChild(det);
   }
   if (node.file) {
     const fl = document.createElement('div');
     fl.className = 'node-file';
-    fl.textContent = node.file;
+    fl.innerHTML = highlightText(node.file, currentQuery);
     body.appendChild(fl);
   }
 
