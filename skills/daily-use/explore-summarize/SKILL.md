@@ -1,9 +1,16 @@
 ---
 name: explore-summarize
-description: "Given a URL (web page or Slack thread), fetch it, follow all links found in it, and produce a cited summary. Use when asked to: summarize a link, explore a URL, research a page and its links."
+description: "Given a URL (web page, Slack thread, or Jira ticket), fetch it, follow all links found in it, and produce a cited summary. Use when asked to: summarize a link, explore a URL, research a page and its links."
 ---
 
 # Explore & Summarize
+
+## If the URL is a Jira ticket (`atlassian.net/browse/`)
+
+1. `getJiraIssue` — fetch the issue details, comments, and linked issues
+2. `slack_search_public_and_private` — search Slack for the ticket ID and key terms to surface related discussions
+3. `searchJiraIssuesUsingJql` — search for related issues (same component, epic, or linked tickets)
+4. For every web URL in the description/comments, apply the web steps below with that URL as the root
 
 ## If the URL is a Slack thread (`slack.com/archives/` or `app.slack.com`)
 
@@ -23,6 +30,7 @@ description: "Given a URL (web page or Slack thread), fetch it, follow all links
 Output the summary as plain markdown in the chat — do not use the Artifact tool.
 
 Group findings under thematic headings with inline citations. End with a **References** list.
+- Jira: cite as `[TICKET-123 title](jira-url)`
 - Slack: cite as `[#channel @author](slack-url)`
 - Web: cite as `[title](url)`
 - Consolidate duplicate info across sources rather than repeating it
