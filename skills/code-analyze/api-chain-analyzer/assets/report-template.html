@@ -384,6 +384,13 @@ body {
   overflow-x: auto;
   line-height: 1.55;
 }
+.node-desc {
+  font-size: 11px;
+  color: var(--t2);
+  margin-top: 3px;
+  line-height: 1.5;
+  font-style: italic;
+}
 .node-file {
   font-family: var(--mono);
   font-size: 10px;
@@ -555,7 +562,7 @@ let selectedEl   = null;
 function buildChainText(calls) {
   if (!calls || !calls.length) return '';
   return calls.map(c =>
-    `${c.label||''} ${c.detail||''} ${c.file||''} ${buildChainText(c.calls)}`
+    `${c.label||''} ${c.description||''} ${c.detail||''} ${c.file||''} ${buildChainText(c.calls)}`
   ).join(' ');
 }
 
@@ -578,6 +585,7 @@ function highlightText(str, q) {
 function nodeMatches(node, q) {
   if (!q) return false;
   return (node.label||'').toLowerCase().includes(q) ||
+         (node.description||'').toLowerCase().includes(q) ||
          (node.detail||'').toLowerCase().includes(q) ||
          (node.file||'').toLowerCase().includes(q);
 }
@@ -812,6 +820,13 @@ function buildNode(node) {
   lbl.className = 'node-label';
   lbl.innerHTML = highlightText(node.label || type, currentQuery);
   body.appendChild(lbl);
+
+  if (node.description) {
+    const desc = document.createElement('div');
+    desc.className = 'node-desc';
+    desc.innerHTML = highlightText(node.description, currentQuery);
+    body.appendChild(desc);
+  }
 
   if (node.detail) {
     const det = document.createElement('div');

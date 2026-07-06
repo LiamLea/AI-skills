@@ -46,12 +46,14 @@ Produces an interactive HTML call-chain report for the target codebase.
             {
               "type": "service",
               "label": "UserService.List(ctx, params)",
+              "description": "Fetches the paginated list of active users, checking cache first",
               "file": "internal/user/service.go:23",
               "detail": null,
               "calls": [
                 {
                   "type": "cache",
                   "label": "cache.Get(\"users:list\")",
+                  "description": "Returns cached result if available, keyed by the users:list prefix",
                   "file": "internal/user/service.go:30",
                   "detail": null,
                   "calls": []
@@ -59,6 +61,7 @@ Produces an interactive HTML call-chain report for the target codebase.
                 {
                   "type": "sql",
                   "label": "SELECT users",
+                  "description": "Reads all active users ordered by newest first for the list response",
                   "file": "internal/user/repo.go:67",
                   "detail": "SELECT id, name, email FROM users WHERE active = true ORDER BY created_at DESC",
                   "calls": []
@@ -77,6 +80,7 @@ Produces an interactive HTML call-chain report for the target codebase.
 - `services[].name`: derived from the top-level directory containing the handler (e.g. `internal/user/…` → `user`)
 - `type`: one of `service | sql | http | grpc | queue | cache | external | internal`
 - `label`: short human-readable name (function name, SQL verb + table, URL)
+- `description`: one sentence explaining what this call does in business terms — its purpose, not its mechanics (e.g. "Checks whether the user has an active session before proceeding", "Loads product catalogue for the given store"). Always populate this field; never leave it null.
 - `detail`: the full SQL string, full URL, or proto method — omit (`null`) for service/internal calls
 - `file`: `relative/path/to/file.go:lineNumber` — omit if unknown
 - `calls`: nested array; empty array `[]` for leaf nodes
