@@ -92,7 +92,7 @@ After building the JSON:
 1. Read `assets/report-template.html` from the skill directory (same directory as this SKILL.md).
 2. Replace the exact token `CALL_GRAPH_DATA` (appears on the line `const DATA = CALL_GRAPH_DATA;`) with the JSON object.
 3. Publish via the Artifact tool with:
-   - `file_path`: scratchpad path ending in `/api-chain-report.html`
+   - `file_path`: scratchpad path ending in `/api-chain-report-<repo-name>.html` (e.g. `/api-chain-report-example-repo.html`)
    - `favicon`: `"🔗"`
 
 ## Tips
