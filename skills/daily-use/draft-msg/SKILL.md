@@ -24,6 +24,7 @@ Summarize the current conversation into a message the user can paste straight in
 - Use the user's terminology and names (services, envs, tickets) exactly as they appeared.
 - Write in the language the user has been using unless they ask otherwise.
 - If the user named an audience or channel, adjust the level of detail to it.
+- If the message is to a user (a client, end user or anyone outside the team), keep it casual, concise and clear: write like a friendly reply, not a formal report. Use plain words, explain jargon or skip it, and leave out internal detail they don't need (e.g. detailed analysis steps). Avoid stiff phrasing like "Please be advised" or "We would like to inform you".
 
 ## Output format
 
