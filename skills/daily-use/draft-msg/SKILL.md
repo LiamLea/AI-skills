@@ -14,7 +14,9 @@ Summarize the current conversation into a message the user can paste straight in
    - **Root cause** — the specific thing that broke or caused the behavior
    - **Reason** — why it happened (the underlying condition, change or trigger)
    - **Analysis steps** — the key steps taken to reach the conclusion, in order, with the evidence each one produced (command, query, log line, metric). Skip dead ends unless they rule out a likely suspect.
-   - **Fix / next steps** — what was done or still needs doing, if known
+   - **Fix / next steps** — what was done or still needs doing, if known. If there are multiple possible fixes, split them into two types:
+     - **Permanent fix** (preferred) — addresses the root cause
+     - **Temporary workaround** — mitigates the symptom until the permanent fix lands
 3. Only include facts established in the conversation. Do not invent details; if something is still unconfirmed, say so.
 
 ## Style
@@ -51,6 +53,10 @@ Output nothing else besides at most one short line before the block (e.g. noting
 
 *Fix / next steps:*
 - <action>
+
+(when there are multiple fixes, use instead:)
+*Permanent fix (preferred):* <root-cause fix>
+*Temporary workaround:* <mitigation until the permanent fix lands>
 ````
 
 ### Template (general discussion)
