@@ -17,6 +17,8 @@ Summarize the current conversation into a message the user can paste straight in
    - **Fix / next steps** — what was done or still needs doing, if known. If there are multiple possible fixes, split them into two types:
      - **Permanent fix** (preferred) — addresses the root cause
      - **Temporary workaround** — mitigates the symptom until the permanent fix lands
+
+     The permanent fix must fix the cause where it lives, not add something around it to cover the symptom. Before proposing one, check whether whoever owns the faulty part already provides a fix, such as a newer version, a setting or a documented approach, and prefer that over building our own. Anything that only compensates for the cause from the outside is a workaround, so list it under the temporary workaround.
 3. Only include facts established in the conversation. Do not invent details; if something is still unconfirmed, say so.
 
 ## Style
