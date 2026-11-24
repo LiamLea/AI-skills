@@ -39,7 +39,7 @@ Name nodes as they're named in the code/infra, so the user can find them.
 
 ## 4. Decide where to draw it
 
-**Simple → draw in the chat.** Roughly: ≤ 8 nodes, one main path with few branches, a single level of detail.
+**Simple → draw in the chat.** Roughly: ≤ 5 nodes, one main path with few branches, a single level of detail.
 
 - Use a plain-text box-and-arrow diagram in a code block (it renders everywhere, including the terminal). Keep it under ~100 characters wide.
 - Use `[ ]` for processes, `( )` for external entities, `[( )]` for data stores, and put the data label on the arrows.
