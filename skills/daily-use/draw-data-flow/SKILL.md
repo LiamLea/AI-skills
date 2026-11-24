@@ -54,7 +54,7 @@ Name nodes as they're named in the code/infra, so the user can find them.
                                                                   [notify-worker] --email--> (SendGrid)
 ```
 
-**Complex → publish an Artifact.** Roughly: more than 8 nodes, several branches or parallel paths, multiple flows, boundaries, or the user wants something to share.
+**Complex → publish an Artifact.** Roughly: more than 5 nodes, several branches or parallel paths, multiple flows, boundaries, or the user wants something to share.
 
 - Load the `artifact-design` and `artifact-diagramming` skills (or the Artifact tool's quickstart) before writing the page, and follow them.
 - Draw the diagram as inline SVG: distinct shapes for entities, processes and stores; labeled, numbered arrows; boundaries as dashed groups; a small legend.
