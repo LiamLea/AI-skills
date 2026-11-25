@@ -22,13 +22,26 @@ Explain the PR in three short parts:
 - **Why** — the problem or goal behind it
 - **How** — the approach taken, key files/pieces involved
 
-## 3. Review
+## 3. Dependencies
+
+Before reviewing, inventory every external dependency the change introduces or relies on: images, actions, charts, modules, libraries, binaries. Output it as a table; the verdict can't be "Looks good" while any row is unchecked.
+
+| Dependency | Packages (upstream path @ ref) | Status | Source |
+|---|---|---|---|
+
+- **Trace internal images and wrappers to what they build.** Search the org for the image name in build workflows (`gh search code "<image>" --owner <org>`), open the build context's Dockerfile, and note every `go install`, `pip install`, `FROM` and download.
+- **Check the exact path, not just the repo.** Confirm the package or subdirectory still exists on the default branch and read its recent commits (`gh api "repos/<owner>/<repo>/commits?path=<dir>"`). An active repo can still have deleted, deprecated or moved the part you use.
+- **Note floating refs** (`@latest`, `master`, `:latest`): the next rebuild picks up upstream changes, including removals.
+- **Usage elsewhere is not evidence.** A pattern shared by sibling repos means they share the risk; check it anyway.
+
+Feed anything deleted, archived, deprecated or near end-of-life into the review below.
+
+## 4. Review
 
 - **Don't be picky.** No style nits, naming bikesheds, or personal preferences.
 - **Find explicit errors.** Bugs, broken logic, wrong config values, missing pieces that will fail, security holes, things that won't work as intended.
 - **Leave optional things alone.** If something could be done differently but works fine, don't mention it.
 - **Raise structural concerns.** If the result looks fine but the structure, approach, or placement feels off (wrong layer, duplicated logic, hard-to-maintain design, surprising side effects), definitely flag it.
-- **Inventory external dependencies first.** List every image, action, chart, module and library the change introduces or relies on. For internally built images or wrappers (e.g. an internal registry's `public/*` images), find what they package (Dockerfile, build repo) and check that upstream too. A pattern copied from a sibling repo is not evidence the dependency is still alive; check it anyway.
 - **Flag outdated or soon-to-break choices.** Code that works today but is already behind, or will stop working soon, is worth raising. For example:
   - **Old way, modern way exists**: a legacy API, pattern or config style where the tool now recommends a replacement (a deprecated Terraform argument or resource, a Kubernetes `apiVersion` with a newer GA version, old GitHub Actions syntax).
   - **Retired or retiring dependency**: a plugin, action, module, Helm chart, library or base image that is archived, unmaintained, deprecated, or has an announced end-of-life or removal date.
@@ -39,7 +52,7 @@ Explain the PR in three short parts:
 
 List each finding with `file:line`, what's wrong, and why it matters. If there are no findings, say so in one line.
 
-## 4. Verdict
+## 5. Verdict
 
 End with one of:
 
@@ -47,7 +60,7 @@ End with one of:
 - **Needs changes.** Summarize the blocking issues in one or two lines.
 - **Needs discussion.** Structural concerns worth talking through before approving.
 
-## 5. Approve
+## 6. Approve
 
 Only after the user explicitly gives the green light:
 
