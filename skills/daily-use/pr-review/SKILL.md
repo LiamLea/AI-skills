@@ -28,6 +28,7 @@ Explain the PR in three short parts:
 - **Find explicit errors.** Bugs, broken logic, wrong config values, missing pieces that will fail, security holes, things that won't work as intended.
 - **Leave optional things alone.** If something could be done differently but works fine, don't mention it.
 - **Raise structural concerns.** If the result looks fine but the structure, approach, or placement feels off (wrong layer, duplicated logic, hard-to-maintain design, surprising side effects), definitely flag it.
+- **Inventory external dependencies first.** List every image, action, chart, module and library the change introduces or relies on. For internally built images or wrappers (e.g. an internal registry's `public/*` images), find what they package (Dockerfile, build repo) and check that upstream too. A pattern copied from a sibling repo is not evidence the dependency is still alive; check it anyway.
 - **Flag outdated or soon-to-break choices.** Code that works today but is already behind, or will stop working soon, is worth raising. For example:
   - **Old way, modern way exists**: a legacy API, pattern or config style where the tool now recommends a replacement (a deprecated Terraform argument or resource, a Kubernetes `apiVersion` with a newer GA version, old GitHub Actions syntax).
   - **Retired or retiring dependency**: a plugin, action, module, Helm chart, library or base image that is archived, unmaintained, deprecated, or has an announced end-of-life or removal date.
