@@ -24,15 +24,15 @@ Explain the PR in three short parts:
 
 ## 3. Dependencies
 
-Before reviewing, inventory every external dependency the change introduces or relies on: images, actions, charts, modules, libraries, binaries. Output it as a table; the verdict can't be "Looks good" while any row is unchecked.
+List only what the diff introduces or changes (a new image, action, chart, module or library, or a version bump), not what it already runs on. One row each; the verdict can't be "Looks good" while a row is unchecked.
 
-| Dependency | Packages (upstream path @ ref) | Status | Source |
+| Dependency | Upstream path @ ref | Last commit on that path | Status |
 |---|---|---|---|
 
-- **Trace internal images and wrappers to what they build.** Search the org for the image name in build workflows (`gh search code "<image>" --owner <org>`), open the build context's Dockerfile, and note every `go install`, `pip install`, `FROM` and download.
-- **Check the exact path, not just the repo.** Confirm the package or subdirectory still exists on the default branch and read its recent commits (`gh api "repos/<owner>/<repo>/commits?path=<dir>"`). An active repo can still have deleted, deprecated or moved the part you use.
+- **Internally built images or wrappers: go one level down.** Find the build (`gh search code "<image>" --owner <org>`) and add a row for each third-party source it pulls (`FROM`, `go install`, `pip install`, downloads). "The tag exists / it builds" is not a status for what's inside.
+- **One check per row:** the latest commit on the exact upstream path, e.g. `gh api "repos/<owner>/<repo>/commits?path=<dir>&per_page=1" --jq '.[0]|.commit.author.date+" "+.commit.message'`. A deleted or stubbed path, a deprecation or move, or no commits for years is a finding. An empty result means the path is wrong; fix it and re-run. For non-GitHub sources (Docker Hub, PyPI, npm), check the registry's deprecation notice or last release instead.
 - **Note floating refs** (`@latest`, `master`, `:latest`): the next rebuild picks up upstream changes, including removals.
-- **Usage elsewhere is not evidence.** A pattern shared by sibling repos means they share the risk; check it anyway.
+- **Usage in sibling repos is not evidence.** They share the risk; check it anyway.
 
 Feed anything deleted, archived, deprecated or near end-of-life into the review below.
 
